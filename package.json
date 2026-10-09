@@ -1,0 +1,9 @@
+{
+  "name": "streamhub-iptv",
+  "appName": "StreamHub IPTV",
+  "version": "1.0.0",
+  "packageType": "app",
+  "appPath": "app/index.html",
+  "keys": ["MediaPlayPause","MediaPlay","MediaPause","MediaStop","Info","ColorF0Red"],
+  "repository": { "url": "https://github.com/TVOJUSER/streamhub-tv" }
+}
