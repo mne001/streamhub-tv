@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StreamHub IPTV</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none}
+:root{--bg:#080b14;--card:#151d30;--card2:#1d2842;--border:#2a3654;--text:#eef2fb;--muted:#8593b3;--grad:linear-gradient(135deg,#6d28d9,#3b82f6);--acc:#7c3aed;--green:#10b981}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,system-ui,sans-serif;font-size:20px}
+.hdr{position:fixed;top:0;left:0;right:0;height:78px;background:linear-gradient(to bottom,rgba(8,11,20,.99),rgba(8,11,20,.75));display:flex;align-items:center;gap:20px;padding:0 40px;z-index:50;border-bottom:1px solid rgba(255,255,255,.06)}
+.hdr .logo{width:50px;height:50px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:25px}
+.hdr .bc{display:flex;align-items:center;gap:12px;font-size:21px;font-weight:600}
+.hdr .bc .sep{color:var(--muted)}
+.hdr .bc .cur{color:#fff}
+.hdr .spacer{flex:1}
+.hdr .clock{color:var(--muted);font-size:19px}
+.main{position:absolute;top:78px;bottom:0;left:0;right:0;overflow-y:auto;padding:34px 40px 70px;scrollbar-width:none}
+.main::-webkit-scrollbar{display:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.grid.g2{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}
+.card{background:var(--card);border:3px solid transparent;border-radius:20px;padding:20px;display:flex;align-items:center;gap:18px;cursor:pointer;transition:transform .13s,background .13s,border-color .13s;outline:none;text-align:left;width:100%;color:inherit;font:inherit}
+.card:focus{border-color:#a78bfa;background:var(--card2);transform:scale(1.06);box-shadow:0 0 0 4px rgba(167,139,250,.35),0 16px 50px rgba(0,0,0,.6);z-index:5}
+.card .ic{width:74px;height:74px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;background:var(--card2);overflow:hidden}
+.card .ic img{width:100%;height:100%;object-fit:cover}
+.card .ic.g1{background:linear-gradient(135deg,#7c3aed,#3b82f6)}
+.card .ic.g2{background:linear-gradient(135deg,#06b6d4,#8b5cf6)}
+.card .ic.g3{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+.card .ic.g4{background:linear-gradient(135deg,#10b981,#06b6d4)}
+.card .m{flex:1;min-width:0}
+.card .t{font-size:23px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .d{font-size:16px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .d .live{color:var(--green);font-weight:700}
+.card .chev{font-size:30px;color:var(--muted)}
+.btn{background:var(--grad);color:#fff;border:3px solid transparent;border-radius:16px;padding:17px 32px;font-size:20px;font-weight:700;cursor:pointer;outline:none;transition:.13s;display:inline-flex;align-items:center;gap:10px;font-family:inherit}
+.btn:focus{transform:scale(1.06);box-shadow:0 0 0 4px rgba(167,139,250,.5)}
+.btn.sec{background:var(--card2)}
+.btn.sec:focus{background:#2a3654}
+.btn.big{width:100%;justify-content:center;padding:23px}
+.bar{display:flex;gap:18px;margin-bottom:28px;flex-wrap:wrap}
+.empty{text-align:center;padding:100px 40px;color:var(--muted)}
+.empty .e{font-size:100px;opacity:.3;margin-bottom:22px}
+.empty h2{font-size:31px;color:#fff;margin-bottom:10px}
+.plr{position:fixed;inset:0;background:#000;z-index:300;display:none}
+.plr.on{display:block}
+.plr video{width:100%;height:100%;object-fit:contain}
+.plr .top{position:absolute;top:0;left:0;right:0;padding:24px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.85),transparent);display:flex;align-items:center;gap:22px;transition:opacity .3s}
+.plr .top .n{font-size:27px;font-weight:700}
+.plr .top .p{font-size:18px;color:#93c5fd}
+.plr .bot{position:absolute;bottom:0;left:0;right:0;padding:28px 40px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);transition:opacity .3s}
+.plr .volrow{display:flex;align-items:center;gap:18px;margin-bottom:18px}
+.plr .volrow .vi{font-size:28px}
+.plr .vbar{flex:1;height:9px;background:rgba(255,255,255,.2);border-radius:6px;overflow:hidden}
+.plr .vfill{height:100%;width:100%;background:var(--grad);transition:width .1s}
+.plr .hint{display:flex;gap:30px;font-size:16px;color:#cbd5e1;justify-content:center;flex-wrap:wrap}
+.plr .hint b{color:#fff;background:rgba(255,255,255,.15);padding:3px 11px;border-radius:7px;margin-right:6px}
+.plr.hide .top,.plr.hide .bot{opacity:0}
+.loader{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:22px;background:rgba(8,11,20,.85)}
+.loader.on{display:flex}
+.spin{width:68px;height:68px;border:5px solid rgba(255,255,255,.15);border-top-color:#a78bfa;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loader p{font-size:21px;color:#cbd5e1}
+.mdl{position:fixed;inset:0;background:rgba(4,6,12,.96);z-index:400;display:none;align-items:center;justify-content:center;padding:50px}
+.mdl.on{display:flex}
+.mbox{background:var(--card);border:1px solid var(--border);border-radius:24px;width:100%;max-width:880px;max-height:86vh;overflow-y:auto;padding:38px}
+.mbox::-webkit-scrollbar{display:none}
+.mbox h2{font-size:29px;margin-bottom:26px}
+.fld{margin-bottom:24px}
+.fld label{display:block;font-size:18px;color:var(--muted);margin-bottom:11px}
+.fld input,.fld select{width:100%;padding:17px 21px;font-size:21px;background:#0d1322;border:3px solid var(--border);border-radius:14px;color:#fff;outline:none;font-family:inherit}
+.fld input:focus,.fld select:focus{border-color:#a78bfa;box-shadow:0 0 0 4px rgba(167,139,250,.3)}
+.mbox .row{display:flex;gap:16px;margin-top:28px}
+.mbox .row .btn{flex:1}
+.note{background:#0d1322;border-left:5px solid #f59e0b;padding:15px 19px;border-radius:12px;font-size:16px;color:var(--muted);line-height:1.5;margin-bottom:22px}
+.epgrow{display:flex;gap:22px;padding:17px;background:#0d1322;border-radius:14px;border-left:5px solid var(--acc);margin-bottom:11px}
+.epgrow.cur{border-left-color:var(--green);background:linear-gradient(135deg,#064e3b,#0a3d2e)}
+.epgrow.past{opacity:.45}
+.epgrow .h{min-width:105px;font-weight:700;color:var(--muted);font-size:18px}
+.epgrow .dt{font-weight:600;font-size:21px;margin-bottom:5px}
+.epgrow .dd{font-size:16px;color:var(--muted)}
+.toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(150px);background:var(--grad);padding:19px 38px;border-radius:16px;font-size:21px;font-weight:700;z-index:500;opacity:0;transition:.3s}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.dbg{position:fixed;inset:0;background:rgba(4,6,12,.98);z-index:600;display:none;padding:40px;overflow-y:auto}
+.dbg.on{display:block}
+.dbg pre{font-family:monospace;font-size:15px;line-height:1.6;color:#93c5fd;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="hdr">
+<div class="logo">📡</div>
+<div class="bc" id="bc"><span class="cur">StreamHub IPTV</span></div>
+<div class="spacer"></div>
+<div class="clock" id="clock"></div>
+</div>
+<div class="main" id="main"></div>
+<div class="plr" id="plr">
+<video id="video" autoplay playsinline></video>
+<div class="loader" id="loader"><div class="spin"></div><p id="loaderMsg">Učitavanje...</p></div>
+<div class="top"><div><div class="n" id="pName">—</div><div class="p" id="pProg"></div></div></div>
+<div class="bot">
+<div class="volrow"><span class="vi" id="vi">🔊</span><div class="vbar"><div class="vfill" id="vfill"></div></div></div>
+<div class="hint"><span><b>◀ ▶</b> Glasnoća</span><span><b>OK</b> Pauza</span><span><b>BACK</b> Izlaz</span><span><b>INFO</b> EPG</span></div>
+</div>
+</div>
+<div class="mdl" id="mdl"><div class="mbox" id="mbox"></div></div>
+<div class="toast" id="toast"></div>
+<div class="dbg" id="dbg"><pre id="dc"></pre></div>
+
+<script>
+const isTizen=(typeof tizen!=='undefined');
+if(isTizen){try{['MediaPlayPause','MediaPlay','MediaPause','MediaStop','MediaFastForward','MediaRewind','Info','ColorF0Red'].forEach(k=>tizen.tvinputdevice.registerKey(k))}catch(e){}}
+
+let lists=[],view='lists',listId=null,group=null,playing=null,hls=null,vol=1,infoTimer=null;
+let settings={};
+try{lists=JSON.parse(localStorage.getItem('tv_lists')||'[]')}catch(e){lists=[]}
+try{settings=JSON.parse(localStorage.getItem('tv_set')||'{}')}catch(e){settings={}}
+
+function log(m){const c=document.getElementById('dc');if(!c)return;c.textContent+='['+new Date().toLocaleTimeString()+'] '+m+'\n';c.scrollTop=c.scrollHeight}
+function save(){try{localStorage.setItem('tv_lists',JSON.stringify(lists))}catch(e){log('Storage pun: '+e.name)}}
+
+const PF=[u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)];
+function proxyList(list){const m=(list&&list.settings&&list.settings.proxy)||settings.proxy||'auto';if(m==='no')return[];if(m==='corsproxy')return[PF[0]];if(m==='codetabs')return[PF[1]];return PF}
+async function smartFetch(url,opts,list){const l=proxyList(list);if(!l.length)return fetch(url,opts);let err;for(const f of l){try{log('Fetch: '+f(url).slice(0,70));const r=await fetch(f(url),opts);if(r.ok)return r;err=new Error('HTTP '+r.status)}catch(e){err=e;log('  fail: '+e.message)}}throw err}
+
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('bs',{hour:'2-digit',minute:'2-digit'})},1000);
+
+function go(v,data){view=v;document.getElementById('main').scrollTop=0;
+if(v==='lists'){document.getElementById('bc').innerHTML='<span class="cur">StreamHub IPTV</span>';renderLists()}
+if(v==='groups'){const l=getList(data);document.getElementById('bc').innerHTML='<span style="color:var(--muted)">Liste</span> <span class="sep">›</span> <span class="cur">'+esc(l.name)+'</span>';renderGroups()}
+if(v==='channels'){const l=getList(data.listId);group=data.group;document.getElementById('bc').innerHTML='<span style="color:var(--muted)">Liste</span> <span class="sep">›</span> <span style="color:var(--muted)">'+esc(l.name)+'</span> <span class="sep">›</span> <span class="cur">'+esc(data.group)+'</span>';renderChannels()}}
+function back(){if(document.getElementById('mdl').classList.contains('on')){closeMdl();return true}
+if(playing){stopPlayback();return true}
+if(view==='channels'){go('groups',listId);return true}
+if(view==='groups'){go('lists');return true}
+return false}
+function getList(id){return lists.find(l=>l.id===id)}
+
+function renderLists(){const m=document.getElementById('main');
+if(!lists.length){m.innerHTML='<div class="empty"><div class="e">📡</div><h2>Nema lista</h2><p>Dodaj M3U listu da počneš</p></div><button class="btn big" onclick="openAdd()" style="max-width:520px;margin:28px auto 0">＋ Dodaj listu</button>';focusFirst();return}
+const g=['g1','g2','g3','g4'];
+m.innerHTML='<div class="bar"><button class="btn" onclick="openAdd()">＋ Dodaj listu</button><button class="btn sec" onclick="openSettings()">⚙️ Podešavanja</button><button class="btn sec" onclick="openDbg()">🐞 Log</button></div><div class="grid">'+
+lists.map((l,i)=>'<button class="card" onclick="openList(\''+l.id+'\')"><div class="ic '+g[i%4]+'">📡</div><div class="m"><div class="t">'+esc(l.name)+'</div><div class="d">'+(l.channels||[]).length+' kanala</div></div><div class="chev">›</div></button>').join('')+'</div>';focusFirst()}
+function openList(id){listId=id;go('groups',id)}
+function renderGroups(){const l=getList(listId);const m=document.getElementById('main');
+const map={};(l.channels||[]).forEach(c=>{const g=c.group||'Ostalo';map[g]=(map[g]||0)+1});
+const groups=Object.keys(map).sort();
+const GI=g=>{g=(g||'').toLowerCase();if(/sport/.test(g))return'⚽';if(/film|movie/.test(g))return'🎬';if(/news|vijest|info/.test(g))return'📰';if(/kid|djec/.test(g))return'🧸';if(/music|muzik/.test(g))return'🎵';if(/doc/.test(g))return'📚';if(/4k|hd/.test(g))return'✨';return'📺'};
+const g=['g1','g2','g3','g4'];
+m.innerHTML='<div class="grid g2">'+groups.map((gr,i)=>'<button class="card" onclick="goCh(\''+esc(gr).replace(/'/g,"\\'")+'\')"><div class="ic '+g[i%4]+'">'+GI(gr)+'</div><div class="m"><div class="t">'+esc(gr)+'</div><div class="d">'+map[gr]+' kanala</div></div><div class="chev">›</div></button>').join('')+'</div>';focusFirst()}
+function goCh(gr){go('channels',{listId:listId,group:gr})}
+function renderChannels(){const l=getList(listId);const m=document.getElementById('main');
+const chans=(l.channels||[]).filter(c=>(c.group||'Ostalo')===group);
+m.innerHTML='<div class="grid">'+chans.map(c=>{const ep=getNowEpg(l,c.tvgId);return '<button class="card" onclick="playCh(\''+c.id+'\')"><div class="ic">'+(c.logo?'<img src="'+c.logo+'" onerror="this.parentElement.innerHTML=\'📺\'">':'📺')+'</div><div class="m"><div class="t">'+esc(c.name)+'</div><div class="d">'+(ep?'<span class="live">● LIVE</span> '+esc(ep.title):'—')+'</div></div><div class="chev">▶</div></button>'}).join('')+'</div>';focusFirst()}
+function getNowEpg(list,tvgId){if(!tvgId||!list.epgData||!list.epgData[tvgId])return null;const n=Date.now();for(const p of list.epgData[tvgId])if(n>=p.start&&n<p.stop)return p;for(const p of list.epgData[tvgId])if(p.start>n)return p;return null}
+function focusFirst(){setTimeout(()=>{const f=document.querySelector('.card,.btn');if(f)f.focus()},60)}
+
+function parseM3U(c){const o=[];let cur={};for(let l of c.split('\n')){l=l.trim();if(l.startsWith('#EXTINF:')){cur={name:(l.match(/,(.+)$/)||[,'?'])[1],logo:(l.match(/tvg-logo="([^"]+)"/)||[,''])[1],group:(l.match(/group-title="([^"]+)"/)||[,'Ostalo'])[1],tvgId:(l.match(/tvg-id="([^"]+)"/)||[,''])[1]}}else if(l&&!l.startsWith('#')&&cur.name){cur.url=l;cur.id=Math.random().toString(36).slice(2);o.push({...cur});cur={}}}return o}
+function parseEPG(x){const d=new DOMParser().parseFromString(x,'text/xml');const e={};const pt=s=>s?new Date(s.substr(0,4)+'-'+s.substr(4,2)+'-'+s.substr(6,2)+'T'+s.substr(8,2)+':'+s.substr(10,2)+':00').getTime():Date.now();for(let p of d.getElementsByTagName('programme')){const c=p.getAttribute('channel');if(!e[c])e[c]=[];e[c].push({start:pt(p.getAttribute('start')),stop:pt(p.getAttribute('stop')),title:p.getElementsByTagName('title')[0]?.textContent||'?',desc:p.getElementsByTagName('desc')[0]?.textContent||''})}return e}
+
+function openAdd(){openMdl('<h2>➕ Dodaj listu</h2><div class="note">Unesi naziv i M3U URL. OK na polju otvara tastaturu.</div><div class="fld"><label>Naziv liste</label><input id="iName" placeholder="Moja lista"></div><div class="fld"><label>M3U URL</label><input id="iUrl" placeholder="https://.../lista.m3u"></div><div class="fld"><label>EPG URL (opcionalno)</label><input id="iEpg" placeholder="https://.../epg.xml"></div><div class="row"><button class="btn" onclick="saveList()">💾 Sačuvaj</button><button class="btn sec" onclick="closeMdl()">Otkaži</button></div>')}
+async function saveList(){const name=document.getElementById('iName').value.trim()||'Lista '+(lists.length+1);const url=document.getElementById('iUrl').value.trim(),epg=document.getElementById('iEpg').value.trim();
+if(!url){toast('Unesi URL!');return}
+showLoad('Učitavanje liste...');
+try{const r=await smartFetch(url,{},null);const content=await r.text();const chans=parseM3U(content);
+if(!chans.length){hideLoad();toast('Lista prazna!');return}
+const list={id:'l'+Date.now(),name,type:'m3u',url,epgUrl:epg,settings:{},channels:chans};
+lists.unshift(list);save();hideLoad();closeMdl();go('lists');toast('Sačuvano: '+chans.length+' kanala');log('Lista: '+chans.length+' kanala');
+if(epg)loadEpg(list);
+}catch(e){hideLoad();log('FAIL: '+e.message);toast('Greška: '+e.message)}}
+async function loadEpg(list){if(!list.epgUrl)return;try{const r=await smartFetch(list.epgUrl,{},list);list.epgData=parseEPG(await r.text());save();log('EPG OK')}catch(e){log('EPG fail')}}
+
+function openSettings(){openMdl('<h2>⚙️ Podešavanja</h2><div class="fld"><label>CORS Proxy</label><select id="iProxy"><option value="auto">Auto (probaj sve)</option><option value="corsproxy">corsproxy.io</option><option value="codetabs">codetabs.com</option><option value="no">Bez proxyja</option></select></div><div class="fld"><label>User-Agent</label><input id="iUa" placeholder="UA string"></div><div class="note">Proxy je često neophodan jer TV browser blokira cross-origin strimove.</div><div class="row"><button class="btn" onclick="saveSettings()">💾 Sačuvaj</button><button class="btn sec" onclick="closeMdl()">Otkaži</button></div>');
+document.getElementById('iProxy').value=settings.proxy||'auto';document.getElementById('iUa').value=settings.ua||''}
+function saveSettings(){settings={proxy:document.getElementById('iProxy').value,ua:document.getElementById('iUa').value.trim()};localStorage.setItem('tv_set',JSON.stringify(settings));closeMdl();toast('Sačuvano!')}
+function openDbg(){document.getElementById('dbg').classList.add('on')}
+
+function openMdl(html){document.getElementById('mbox').innerHTML=html;document.getElementById('mdl').classList.add('on');setTimeout(()=>{const f=document.querySelector('#mbox input,#mbox .btn');if(f)f.focus()},90)}
+function closeMdl(){document.getElementById('mdl').classList.remove('on');focusFirst()}
+
+async function playCh(id){const l=getList(listId);const c=(l.channels||[]).find(x=>x.id===id);if(!c)return;
+playing={list:l,ch:c};document.getElementById('pName').textContent=c.name;
+const ep=getNowEpg(l,c.tvgId);document.getElementById('pProg').textContent=ep?'Sada: '+ep.title:'';
+document.getElementById('plr').classList.add('on');playStream(c.url,l);
+document.getElementById('plr').classList.remove('hide');clearTimeout(infoTimer);infoTimer=setTimeout(()=>document.getElementById('plr').classList.add('hide'),5000)}
+async function playStream(url,l){if(hls){try{hls.destroy()}catch(e){}hls=null}
+const v=document.getElementById('video');
+document.getElementById('loaderMsg').textContent='Učitavanje...';document.getElementById('loader').classList.add('on');
+log('Play: '+url.slice(0,70));
+const pu=proxyList(l).length?proxyList(l)[0](url):url;
+if(window.Hls&&Hls.isSupported()){
+hls=new Hls({manifestLoadingTimeOut:20000,manifestLoadingMaxRetry:3});
+hls.loadSource(pu);hls.attachMedia(v);
+hls.on(Hls.Events.MANIFEST_PARSED,()=>{document.getElementById('loader').classList.remove('on');v.play().catch(()=>{});log('HLS OK')});
+hls.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal){log('HLS fatal '+d.details);document.getElementById('loaderMsg').textContent='Greška: '+d.details;setTimeout(()=>document.getElementById('loader').classList.remove('on'),2500)}});
+}else{v.src=pu;v.play().catch(()=>{});document.getElementById('loader').classList.remove('on')}}
+function stopPlayback(){const v=document.getElementById('video');v.pause();if(hls){try{hls.destroy()}catch(e){}hls=null}v.removeAttribute('src');v.load();document.getElementById('plr').classList.remove('on');playing=null;focusFirst()}
+
+function openEpg(){if(!playing)return;const list=playing.list,ch=playing.ch;
+let html='<h2>📅 '+esc(ch.name)+'</h2>';
+if(!ch.tvgId||!list.epgData||!list.epgData[ch.tvgId]){html+='<div class="note">Nema EPG podataka za ovaj kanal</div>'}
+else{const n=Date.now();html+=list.epgData[ch.tvgId].map(g=>{const cc=n>=g.start&&n<g.stop,past=g.stop<n;return '<div class="epgrow '+(cc?'cur':'')+' '+(past?'past':'')+'"><div class="h">'+new Date(g.start).toLocaleTimeString('bs',{hour:'2-digit',minute:'2-digit'})+'<br>–<br>'+new Date(g.stop).toLocaleTimeString('bs',{hour:'2-digit',minute:'2-digit'})+'</div><div><div class="dt">'+esc(g.title)+'</div>'+(g.desc?'<div class="dd">'+esc(g.desc)+'</div>':'')+'</div></div>'}).join('')}
+html+='<div class="row"><button class="btn" onclick="closeMdl()">Zatvori</button></div>';openMdl(html)}
+
+function setVol(v){vol=Math.max(0,Math.min(1,v));document.getElementById('video').volume=vol;document.getElementById('vfill').style.width=(vol*100)+'%';document.getElementById('vi').textContent=vol===0?'🔇':(vol<.5?'🔉':'🔊')}
+
+function moveFocus(dir){const els=[...document.querySelectorAll('.card,.btn,#mbox input,#mbox select')].filter(e=>e.offsetParent!==null);
+if(!els.length)return;const cur=document.activeElement;
+if(!els.includes(cur)){els[0].focus();return}
+const cr=cur.getBoundingClientRect();let best=null,bs=Infinity;
+for(const el of els){if(el===cur)continue;const r=el.getBoundingClientRect();
+const dx=(r.left+r.width/2)-(cr.left+cr.width/2),dy=(r.top+r.height/2)-(cr.top+cr.height/2);
+let ok=false,d=0;
+if(dir==='left'&&dx<-8){ok=true;d=Math.abs(dx)+Math.abs(dy)*2}
+if(dir==='right'&&dx>8){ok=true;d=Math.abs(dx)+Math.abs(dy)*2}
+if(dir==='up'&&dy<-8){ok=true;d=Math.abs(dy)+Math.abs(dx)*2}
+if(dir==='down'&&dy>8){ok=true;d=Math.abs(dy)+Math.abs(dx)*2}
+if(ok&&d<bs){bs=d;best=el}}
+if(best)best.focus()}
+
+document.addEventListener('keydown',e=>{const k=e.keyCode;
+if(document.getElementById('dbg').classList.contains('on')&&(k===10009||k===27)){document.getElementById('dbg').classList.remove('on');return}
+if(playing){
+if(k===37||k===39){setVol(vol+(k===39?0.05:-0.05));showInfo();e.preventDefault();return}
+if(k===13||k===415){const v=document.getElementById('video');if(v.paused)v.play();else v.pause();showInfo();e.preventDefault();return}
+if(k===457){openEpg();e.preventDefault();return}
+if(k===10009||k===27){back();e.preventDefault();return}}
+if(k===37)moveFocus('left');
+else if(k===38)moveFocus('up');
+else if(k===39)moveFocus('right');
+else if(k===40)moveFocus('down');
+else if(k===10009||k===27){if(!back()){try{tizen.application.getCurrentApplication().exit()}catch(e){window.close()}}e.preventDefault()}
+else if(k===457){if(playing)openEpg()}});
+function showInfo(){const p=document.getElementById('plr');p.classList.remove('hide');clearTimeout(infoTimer);infoTimer=setTimeout(()=>p.classList.add('hide'),5000)}
+
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000)}
+function showLoad(m){document.getElementById('loaderMsg').textContent=m;document.getElementById('loader').classList.add('on')}
+function hideLoad(){document.getElementById('loader').classList.remove('on')}
+
+setVol(1);go('lists');log('StreamHub IPTV pokrenut'+(isTizen?' (Tizen)':''));
+</script>
+</body>
+</html>
